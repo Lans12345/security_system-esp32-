@@ -89,12 +89,10 @@ void loop() {
       isMotionDetected = true;
 
       // Capture an image
-
-       camera_fb_t *fb = esp_camera_fb_get();
-      // camera_fb_t *fb = esp_camera_fb_get();
-      // Serial.print("Image size: ");
-      // Serial.println(fb->len);
-      // esp_camera_fb_return(fb);
+      camera_fb_t *fb = esp_camera_fb_get();
+      Serial.print("Image size: ");
+      Serial.println(fb->len);
+      esp_camera_fb_return(fb);
     }
   } else {
     // No motion detected
