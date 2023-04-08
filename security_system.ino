@@ -1,7 +1,7 @@
 #include <WiFi.h>
 #include <Wire.h>
 #include "esp_camera.h"
-#include <ESP32_MailClient.h>
+#include <SMTPClient.h>
 
 #define PIR_PIN 14
 #define BUZZER_PIN 12
@@ -11,6 +11,7 @@ const char* ssid = "your_SSID";
 const char* password = "your_PASSWORD";
 
 const char* smtpServer = "smtp.gmail.com";
+const int smtpPort = 465;
 const char* emailSender = "olanalans12345@gmail.com";
 const char* emailRecipient = "olanalans12345@gmail.com";
 const char* smtpUser = "olanalans12345@gmail.com";
@@ -90,53 +91,58 @@ void setup() {
 }
 
 void loop() {
-  if (digitalRead(PIR_PIN) == HIGH) {
-    if (!motionDetected) {
-      Serial.println("Motion detected!");
-      motionDetected = true;
-      digitalWrite(BUZZER_PIN, HIGH);
-      digitalWrite(RELAY_PIN, LOW);
-      delay(1000);
-      digitalWrite(BUZZER_PIN, LOW);
-      digitalWrite(RELAY_PIN, HIGH);
-      
-      // Capture an image
-      camera_fb_t* fb = esp_camera_fb_get();
-      if (!fb) {
-        Serial.println("Failed to capture image");
-        return;
-      }
-      
-      // Set the SMTP Server Email data
-      smtpData.setLogin(smtpServer, 465, smtpUser, smtpPassword);
-      smtpData.setSender("ESP32", emailSender);
-      smtpData.setPriority(0);
-      smtpData.setSubject(emailSubject);
-      smtpData.addAttachment("image.jpg", fb->buf, fb->len);
-      smtpData.setMessage(emailMessage, false);
-      smtpData.setRecipient(emailRecipient);
-      smtpData.setSendCallback(sendCallback);
-      
-      // Send the email
-      if (!MailClient.sendMail(smtpData)) {
-        Serial.println("Error sending Email, " + MailClient.smtpErrorReason());
-      }
-      
-      // Clear all data from the SMTP object
-      smtpData.empty();
-      
-      // Delete the image buffer
-      esp_camera_fb_return(fb);
-    }
-  } else {
-    if (motionDetected) {
-      Serial.println("No motion detected.");
-      motionDetected = false;
-    }
+if (digitalRead(PIR_PIN) == HIGH) {
+if (!motionDetected) {
+Serial.println("Motion detected!");
+motionDetected = true;
+digitalWrite(BUZZER_PIN, HIGH);
+digitalWrite(RELAY_PIN, LOW);
+delay(1000);
+digitalWrite(BUZZER_PIN, LOW);
+digitalWrite(RELAY_PIN, HIGH);
+  // Capture an image
+  camera_fb_t* fb = esp_camera_fb_get();
+  if (!fb) {
+    Serial.println("Failed to capture image");
+    return;
   }
+
+  // Set the SMTP Server Email data
+  smtpData.setLogin(smtpServer, 465, smtpUser, smtpPassword);
+  smtpData.setSender("ESP32", emailSender);
+  smtpData.setPriority(0);
+  smtpData.setSubject(emailSubject);
+  smtpData.addAttachment("image.jpg", fb->buf, fb->len);
+  smtpData.setMessage(emailMessage, false);
+  smtpData.setRecipient(emailRecipient);
+  smtpData.setSendCallback(sendCallback);
+
+  // Send the email
+  SmtpClient smtp(smtpServer, 465, smtpUser, smtpPassword, true);
+  smtp.addRecipient(emailRecipient);
+  smtp.setSender(emailSender);
+  smtp.setSubject(emailSubject);
+  smtp.setMessage(emailMessage);
+  smtp.addAttachment("image.jpg", fb->buf, fb->len);
+  if (!smtp.sendEmail()) {
+    Serial.println("Error sending Email");
+  }
+
+  // Clear all data from the SMTP object
+  smtp.empty();
+
+  // Delete the image buffer
+  esp_camera_fb_return(fb);
+} } else {
+if (motionDetected) {
+Serial.println("No motion detected.");
+motionDetected = false;
+}
+}
 }
 
 void sendCallback(SendStatus msg) {
-  // Print the status of the email sending
-  Serial.println(msg.info());
+// Print the status of the email sending
+Serial.println(msg.info());
 }
+
