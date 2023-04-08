@@ -1,26 +1,27 @@
 #include <WiFi.h>
 #include <Wire.h>
 #include "esp_camera.h"
-#include <WiFiClientSecure.h>
-#include <Base64.h>
-#include <ESP32Mail.h>
+#include <ESP32_MailClient.h>
 
 #define PIR_PIN 14
 #define BUZZER_PIN 12
 #define RELAY_PIN 13
 
-bool motionDetected = false;
-
 const char* ssid = "your_SSID";
 const char* password = "your_PASSWORD";
 
+const char* smtpServer = "smtp.gmail.com";
+const char* emailSender = "olanalans12345@gmail.com";
+const char* emailRecipient = "olanalans12345@gmail.com";
+const char* smtpUser = "olanalans12345@gmail.com";
+const char* smtpPassword = "123moviestf";
 
+bool motionDetected = false;
 
-// Replace with your email credentials
-const char* smtp_host = "smtp.gmail.com";
-const int smtp_port = 465;
-const char* email_address = "olanalans12345@gmail.com";
-const char* email_password = "123moviestf";
+ESP32_MailClient MailClient;
+SMTPData smtpData;
+const char* emailSubject = "Motion detected!";
+const char* emailMessage = "Motion has been detected by NodeMCU ESP32.";
 
 void setup() {
   pinMode(PIR_PIN, INPUT);
@@ -28,16 +29,23 @@ void setup() {
   pinMode(RELAY_PIN, OUTPUT);
   digitalWrite(BUZZER_PIN, LOW);
   digitalWrite(RELAY_PIN, LOW);
-  Serial.begin(9600);
+  Serial.begin(115200);
 
- 
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) {
     delay(1000);
-    Serial.println("Connecting to WiFi...");
+    Serial.println("Connecting to Wi-Fi...");
   }
-  Serial.println("WiFi connected");
+  Serial.println("Connected to Wi-Fi");
 
+  // Set the SMTP Server Email data
+  smtpData.setLogin(smtpServer, 465, smtpUser, smtpPassword);
+  smtpData.setSender("ESP32", emailSender);
+  smtpData.setPriority(0);
+  smtpData.setSubject(emailSubject);
+  smtpData.setMessage(emailMessage, false);
+  smtpData.setRecipient(emailRecipient);
+  smtpData.setSendCallback(sendCallback);
 }
 
 void loop() {
@@ -51,20 +59,13 @@ void loop() {
       digitalWrite(BUZZER_PIN, LOW);
       digitalWrite(RELAY_PIN, HIGH);
 
-           // Replace with your recipient email address
-        String recipient = "olanalans12345@gmail.com";
-        String subject = "Hello from Arduino";
-        String message = "This is a test email sent from Arduino using ESP8266.";
+      // Send the email
+      if (!MailClient.sendMail(smtpData)) {
+        Serial.println("Error sending Email, " + MailClient.smtpErrorReason());
+      }
 
-        if (smtpClient.send(recipient, subject, message))
-        {
-            Serial.println("Email sent successfully!");
-        }
-        else
-        {
-            Serial.println("Error sending email.");
-        }
-
+      // Clear all data from the SMTP object
+      smtpData.empty();
     }
   } else {
     if (motionDetected) {
@@ -72,4 +73,9 @@ void loop() {
       motionDetected = false;
     }
   }
+}
+
+void sendCallback(SendStatus msg) {
+  // Print the status of the email sending
+  Serial.println(msg.info());
 }
