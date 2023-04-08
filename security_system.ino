@@ -40,7 +40,7 @@ bool motionDetected = false;
 
 // Email data
 SMTPData smtpData;
-String emailSubject = "ESP32-CAM Motion Detected";
+String emailSubject = "Motion Detected";
 String emailMessage = "Motion has been detected! See attached image.";
 
 void setup() {
