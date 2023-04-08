@@ -2,106 +2,78 @@
 #include <Wire.h>
 #include "esp_camera.h"
 
-const int PIR_PIN = 14;
-const int RELAY_PIN = 13;
-const int LED_PIN = 13;
-const int BUZZER_PIN = 12;
-
-boolean isMotionDetected = false;
+#define PIR_PIN 14
+#define BUZZER_PIN 12
+#define RELAY_PIN 13
 
 
-#define CAMERA_MODEL_AI_THINKER
-#define PWDN_GPIO_NUM     -1
-#define RESET_GPIO_NUM    -1
-#define XCLK_GPIO_NUM     4
-#define SIOD_GPIO_NUM     18
-#define SIOC_GPIO_NUM     23
-#define Y9_GPIO_NUM       36
-#define Y8_GPIO_NUM       37
-#define Y7_GPIO_NUM       38
-#define Y6_GPIO_NUM       39
-#define Y5_GPIO_NUM       35
-#define Y4_GPIO_NUM       14
-#define Y3_GPIO_NUM       13
-#define Y2_GPIO_NUM       34
-#define VSYNC_GPIO_NUM    5
-#define HREF_GPIO_NUM     27
-#define PCLK_GPIO_NUM     25
+const char* ssid = "4ac7cf";
+const char* password = "260547987";
+const char* smtp_server = "smtp.gmail.com";
+const int smtp_port = 465; // Gmail SMTP port for SSL
+const char* email_from = "olanalans12345@gmail.com";
+const char* email_password = "123moviestf";
+const char* email_to = "olanalans12345@gmail.com";
+const char* email_subject = "Test email from ESP32";
+const char* email_body = "This is a test email sent from an ESP32.";
+
+bool motionDetected = false;
 
 void setup() {
-  Serial.begin(115200);
   pinMode(PIR_PIN, INPUT);
-  pinMode(RELAY_PIN, OUTPUT);
-  pinMode(LED_PIN, OUTPUT);
   pinMode(BUZZER_PIN, OUTPUT);
-
-  // Initialize the camera
- camera_config_t config;
-  config.ledc_timer = LEDC_TIMER_0;
-  config.ledc_channel = LEDC_CHANNEL_0;
-  config.pixel_format = PIXFORMAT_JPEG;
-  config.frame_size = FRAMESIZE_SVGA;
-  config.jpeg_quality = 10;
-  config.fb_count = 1;
-
-  // pin mapping
-  config.pin_pwdn = PWDN_GPIO_NUM;
-  config.pin_reset = RESET_GPIO_NUM;
-  config.pin_xclk = XCLK_GPIO_NUM;
-  config.pin_sscb_sda = SIOD_GPIO_NUM;
-  config.pin_sscb_scl = SIOC_GPIO_NUM;
-
-  config.pin_d7 = Y9_GPIO_NUM;
-  config.pin_d6 = Y8_GPIO_NUM;
-  config.pin_d5 = Y7_GPIO_NUM;
-  config.pin_d4 = Y6_GPIO_NUM;
-  config.pin_d3 = Y5_GPIO_NUM;
-  config.pin_d2 = Y4_GPIO_NUM;
-  config.pin_d1 = Y3_GPIO_NUM;
-  config.pin_d0 = Y2_GPIO_NUM;
-  config.pin_vsync = VSYNC_GPIO_NUM;
-  config.pin_href = HREF_GPIO_NUM;
-  config.pin_pclk = PCLK_GPIO_NUM;
-
-  // init camera
-  esp_err_t err = esp_camera_init(&config);
-  if (err != ESP_OK) {
-    Serial.printf("Camera init failed with error 0x%x", err);
-    return;
-  }
+  pinMode(RELAY_PIN, OUTPUT);
+  digitalWrite(BUZZER_PIN, LOW);
+  digitalWrite(RELAY_PIN, LOW);
+  Serial.begin(9600);
 }
 
 void loop() {
 
-   
-
-     
+  SMTPClient smtp(smtp_server, smtp_port);
   if (digitalRead(PIR_PIN) == HIGH) {
-    // Motion detected
-    if (!isMotionDetected) {
-      Serial.println("Motion detected");
-      digitalWrite(RELAY_PIN, HIGH);
-      digitalWrite(LED_PIN, HIGH);
-	digitalWrite(BUZZER_PIN, HIGH);
-
+    if (!motionDetected) {
+      Serial.println("Motion detected!");
+      motionDetected = true;
+      digitalWrite(BUZZER_PIN, HIGH);
+      digitalWrite(RELAY_PIN, LOW);
       delay(1000);
+      digitalWrite(BUZZER_PIN, LOW);
+      digitalWrite(RELAY_PIN, HIGH);
 
-      isMotionDetected = true;
-
-      // Capture an image
-      camera_fb_t *fb = esp_camera_fb_get();
-      Serial.print("Image size: ");
-      Serial.println(fb->len);
-      esp_camera_fb_return(fb);
+        if (!smtp.connect()) {
+    Serial.println("Failed to connect to SMTP server.");
+    return;
+  }
+  
+  // Login to the SMTP server
+  if (!smtp.login(email_from, email_password)) {
+    Serial.println("Failed to login to SMTP server.");
+    smtp.quit();
+    return;
+  }
+  
+  // Create the email message
+  EmailMessage email;
+  email.setSubject(email_subject);
+  email.setSender(email_from);
+  email.addRecipient(email_to);
+  email.setText(email_body);
+  
+  // Send the email
+  if (!smtp.send(email)) {
+    Serial.println("Failed to send email.");
+    smtp.quit();
+    return;
+  }
+  
+  Serial.println("Email sent successfully.");
+  smtp.quit();
     }
   } else {
-    // No motion detected
-    if (isMotionDetected) {
-      Serial.println("No motion detected");
-      digitalWrite(RELAY_PIN, LOW);
-      digitalWrite(LED_PIN, LOW);
-      isMotionDetected = false;
+    if (motionDetected) {
+      Serial.println("No motion detected.");
+      motionDetected = false;
     }
   }
-  delay(100);
 }
