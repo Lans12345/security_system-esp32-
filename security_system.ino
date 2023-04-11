@@ -1,7 +1,6 @@
 #include <WiFi.h>
 #include <Wire.h>
 #include "esp_camera.h"
-#include <BlynkSimpleEsp32.h>
 
 #define PIR_PIN 14
 #define BUZZER_PIN 12
@@ -25,8 +24,8 @@
 #define HREF_GPIO_NUM    23
 #define PCLK_GPIO_NUM    22
 
-bool motionDetected = false;
 unsigned long motionDetectedTime = 0;
+bool motionDetected = false;
 
 void setup() {
   pinMode(PIR_PIN, INPUT);
@@ -36,7 +35,6 @@ void setup() {
   digitalWrite(BUZZER_PIN, LOW);
   digitalWrite(RELAY_PIN, LOW);
   Serial.begin(115200);
-  Blynk.begin("auth_token", "ssid", "password");
   
   // Configure camera
   camera_config_t config;
@@ -70,43 +68,34 @@ void setup() {
 }
 
 void loop() {
-Blynk.run(); // Start Blynk app
+  if (digitalRead(PIR_PIN) == HIGH) {
+    Serial.println("Motion detected!");
+    unsigned long motionStartTime = millis();
+    while (digitalRead(PIR_PIN) == HIGH) {
+      if (millis() - motionStartTime >= 5000) {
+        Serial.println("Motion detected for 5 seconds!");
+        digitalWrite(BUZZER_PIN, HIGH);
+        digitalWrite(RELAY_PIN, LOW);
+        digitalWrite(REDLED_PIN, HIGH);
+        
 
-if (digitalRead(PIR_PIN) == HIGH) {
-if (!motionDetected) {
-Serial.println("Motion detected!");
-motionDetected = true;
-motionDetectedTime = millis();
-digitalWrite(BUZZER_PIN, HIGH);
-digitalWrite(RELAY_PIN, LOW);
-digitalWrite(REDLED_PIN, HIGH);
+        camera_fb_t *fb = esp_camera_fb_get();
+        if (!fb) {
+          Serial.println("Failed to capture image");
+          return;
+        }
+        esp_camera_fb_return(fb);
+        break;
+      }
+      delay(100);
+    }
+  } else {
+    digitalWrite(BUZZER_PIN, LOW);
+    digitalWrite(RELAY_PIN, HIGH);
+    digitalWrite(REDLED_PIN, LOW);
+    delay(100);
+  }
 }
-if (motionDetected && millis() - motionDetectedTime > 60000) {
-Serial.println("Motion detected for more than 60 seconds!");
-camera_fb_t *fb = esp_camera_fb_get();
-if (!fb) {
-Serial.println("Failed to capture image");
-return;
-}
-  Blynk.virtualWrite(V1, fb->buf, fb->len);
-  esp_camera_fb_return(fb);
 
-  // Send message to Blynk
-  Blynk.notify("Motion detected for more than 60 seconds!");
-  
-  digitalWrite(BUZZER_PIN, LOW);
-  digitalWrite(RELAY_PIN, HIGH);
-  digitalWrite(REDLED_PIN, LOW);
-  motionDetected = false;
-}  Blynk.virtualWrite(V1, fb->buf, fb->len);
-  esp_camera_fb_return(fb);
 
-  // Send message to Blynk
-  Blynk.notify("Motion detected for more than 60 seconds!");
-  
-  digitalWrite(BUZZER_PIN, LOW);
-  digitalWrite(RELAY_PIN, HIGH);
-  digitalWrite(REDLED_PIN, LOW);
-  motionDetected = false;
-}
-}
+
